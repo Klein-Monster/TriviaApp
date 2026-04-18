@@ -1,0 +1,186 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+@using TriviaApp.Domain.Models
+@using TriviaApp.Domain.Models.Requests
+@using TriviaApp.Domain.Models.Responses
+@using TriviaApp.Domain.Services
+@using TriviaApp.Web.Components.Models;
+@inject ITriviaService ConfigService
+
+<PageTitle>Start quiz</PageTitle>
+
+<h1>Start quiz</h1>
+
+@if (configData is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <EditForm Model="@request" OnValidSubmit="StartQuiz" FormName="startQuizForm">
+        <div class="mb-3">
+            <label>Number of questions</label>
+            <InputNumber class="form-control" @bind-Value="request.Amount" min="1" max="50" />
+            <ValidationMessage For="@(() => request.Amount)" />
+        </div>
+
+        <div class="mb-3">
+            <label>Category</label>
+            <InputSelect class="form-select" @bind-Value="request.CategoryId">
+                <option value="">Any Category</option>
+
+                @foreach (var option in configData.Categories)
+                {
+                    <option value="@option.Id">@option.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label>Difficulty</label>
+            <InputSelect class="form-select" @bind-Value="request.Difficulty">
+                <option value="">Any Difficulty</option>
+
+                @foreach (var option in configData.Difficulties)
+                {
+                    <option value="@option">@option</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label>Type</label>
+            <InputSelect class="form-select" @bind-Value="request.Type">
+                <option value="">Any Type</option>
+
+                @foreach (var option in configData.Types)
+                {
+                    <option value="@option">@option</option>
+                }
+            </InputSelect>
+        </div>
+
+        <button class="btn btn-primary" type="submit">Start</button>
+    </EditForm>
+}
+
+@if (quizResponse is not null && quizResponse.IsSuccess && quizResponse.Questions is not null)
+{
+    <div class="mt-4">
+        <h3>Questions</h3>
+
+        @foreach (var question in quizResponse.Questions)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>@question.Question</h5>
+
+                    @foreach (var answer in question.AnswerOptions)
+                    {
+                        var radioName = $"question-{question.Id}";
+                        var radioId = $"question-{question.Id}-{answer}";
+
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="@radioName"
+                                   id="@radioId"
+                                   checked="@IsSelected(question.Id, answer)"
+                                   @onchange="() => SelectAnswer(question.Id, answer)" />
+                            <label class="form-check-label" for="@radioId">
+                                @answer
+                            </label>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <button class="btn btn-success"
+                @onclick="SubmitAnswers"
+                disabled="@(!AllQuestionsAnswered)">
+            Submit answers
+        </button>
+
+        @if (allAnswersAreCorrect is not null)
+        {
+            @if (allAnswersAreCorrect == true)
+            {
+                <div class="alert alert-success mt-3">
+                    All answers are correct.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger mt-3">
+                    Not all answers are correct.
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private GetTriviaConfigDataResponse configData;
+    private StartTriviaRequest request;
+    private GetQuestionsResponse quizResponse;
+
+    private Dictionary<Guid, string> selectedAnswers = [];
+    private bool? allAnswersAreCorrect = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        configData = await ConfigService.GetTriviaConfigData();
+        request = new();
+    }
+
+    private async Task StartQuiz()
+    {
+        var quizRequest = new GetQuestionsRequest
+        {
+            Amount = request.Amount,
+            CategoryId = request.CategoryId,
+            Difficulty = request.Difficulty,
+            Type = request.Type
+        };
+
+        quizResponse = await ConfigService.GetQuestions(quizRequest);
+        allAnswersAreCorrect = null;
+        selectedAnswers = [];
+    }
+
+    private void SelectAnswer(Guid questionId, string answer)
+    {
+        selectedAnswers[questionId] = answer;
+    }
+
+    private bool IsSelected(Guid questionId, string answer)
+    {
+        return selectedAnswers.TryGetValue(questionId, out var selected)
+            && selected == answer;
+    }
+
+    private bool AllQuestionsAnswered =>
+        quizResponse is not null
+        && quizResponse.Questions.All(q => selectedAnswers.ContainsKey(q.Id));
+
+    private async Task SubmitAnswers()
+    {
+        if (quizResponse is null || !AllQuestionsAnswered)
+            return;
+
+        var checkAnswersRequest = new CheckAnswersRequest
+        {
+            AnsweredQuestions = selectedAnswers
+                .Select(x => new AnsweredQuestion
+                {
+                    QuestionId = x.Key,
+                    Answer = x.Value
+                })
+                .ToList()
+        };
+
+        allAnswersAreCorrect = await ConfigService.CheckAnswers(checkAnswersRequest);
+    }
+}
