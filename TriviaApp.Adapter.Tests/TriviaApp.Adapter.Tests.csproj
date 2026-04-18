@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TriviaApp.Adapters\TriviaApp.Adapter.csproj" />
+    <ProjectReference Include="..\TriviaApp.Adapter\TriviaApp.Adapter.csproj" />
   </ItemGroup>
 
   <ItemGroup>

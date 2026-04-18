@@ -1,6 +1,6 @@
 <Solution>
   <Project Path="TriviaApp.Adapter.Tests/TriviaApp.Adapter.Tests.csproj" Id="33b90a79-9945-4ab9-8d26-030e11782ecf" />
-  <Project Path="TriviaApp.Adapters/TriviaApp.Adapter.csproj" />
+  <Project Path="TriviaApp.Adapter/TriviaApp.Adapter.csproj" />
   <Project Path="TriviaApp.Domain/TriviaApp.Domain.csproj" />
   <Project Path="TriviaApp.Web/TriviaApp.Web.csproj" />
 </Solution>
